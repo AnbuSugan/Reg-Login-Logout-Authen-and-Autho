@@ -1,0 +1,601 @@
+
+
+//Backend 
+
+create server.js
+
+Commands :
+ 
+npm init 
+npm i express mongoose
+npm i -D nodemon 
+
+step 2: 
+ package.json :
+ 
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "server": "nodemon server.js" --
+  },
+
+step 3: 
+
+server.js 
+
+const express = require("express");
+const port = 3000;
+
+const app = express();
+
+app.listen(port, ()=> {
+ console.log(`Server start on the Port ${port}`);
+});
+
+npm run server
+
+
+step 4:
+
+backend/controller/todoController.js
+
+const getTodos = (req,res) => {
+res.status(200).json({message: 'Get Todos'})
+}
+
+const setTodo = (req,res) => {
+res.status(200).json({message: 'Set Todos'})
+}
+
+const updateTodo = (req,res) => {
+  res.status(200).json({message: 'update Todos'})
+}
+
+const deleteTodo = (req, res) => {
+  res.status(200).json({ message: 'deleteTodo'})
+}
+
+module.exports = {
+getTodos,
+setTodo,
+updateTodo,
+deleteTodo
+}
+
+
+step 5 :
+
+beckend/routes/routes.js
+
+const express = require('express')
+const router = express.Router();
+const { getTodos, setTodo, updateTodo, deleteTodo } = require('../controller/tedoController.js');
+
+router.route('/').get(getTodos).post(setTodo)
+router.route('/:id').put(updateTodo).delete(deleteTodo)
+
+module.exports 	= router;
+
+step 6 :
+
+app.use(express.json());
+app.use(express.urlencode({extended: false}))
+
+app.use('/api/todos', require('./routes/todoRoutes'))
+
+
+Step : 6 
+
+backend/middleware/errorMiddleware.js
+
+const errorHandler = ( err,req,res,next) => {
+  const statusCode = res.statusCode ? res.statusCode : 500;
+
+  res.status(statusCode);
+
+  res.json({
+   message: err.message,
+   stack: err.stack,
+});
+};
+
+module.exports = {
+ errorHandler,
+};
+
+step 7 :
+
+server.js 
+
+const { errorHandler } = require('./middleware/errorHandler.js');
+
+app.use(errorHandler);
+
+
+step 8 :
+
+todoController.js
+
+const setTodo = (req,res) => {
+ if(!req.body.text){
+   res.status(400);
+   throw new Error('Please add text field');
+}
+ res.status(200).json({message:'set Todo'})
+}
+	
+
+step 9 : 
+
+async handler 
+
+npm i express-async-handler
+
+todocontroller.js
+
+const asyncHandler = require('express-async-handler');
+
+const getTodos = asyncHandler(async(req,res) => {
+  res.status(200).json({message: 'Get todos'})
+});
+
+step 10: 
+
+Connect Database :
+
+db.js
+
+const mongoose = require('mongoose');
+
+const url ='mongodb+srv://practise:AnbarasuSuganthi@anbarasu.nkv0dad.mongodb.net/RegisterLogin?retryWrites=true&w=majority&appName=Anbarasu';
+
+const connectionParams = {
+  useUnifiedTopology: true;
+  useNewUrlParser: true;
+  serverSelectionTimeoutMS: 30000
+}
+
+
+const connectToDatabase = async () => {
+  try {
+   await mongoose.connect(url,connectionParams)
+   consoe.log('connect o the database');
+}
+catch(err){
+ console.log(`Error Connecting database : /n ${err}`);
+ process.exit(1);
+}
+}
+
+module.exports = connectToDatabase;
+
+//Server.js
+
+const connectToDatabase = require('./db');
+
+connectToDatabase();
+
+
+step 11:
+models/todoModel.js
+
+const mongoose = require('mongoose');
+
+const todoSchema = mongoose.schema (
+    {
+        name:{
+            type: String,
+            required:[true, 'Please Add the field'],
+        },
+        mobile:{
+            type: Number,
+            required: [true, 'Please Add the field'],
+        },
+        email:{
+            type: String,
+            required: [ true, 'Please Add the field'],
+            match:[
+                /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+                'Please add a valid email',
+            ]
+        },
+        author:{
+            type: String,
+            required: [ true, 'Please Add the author name'],
+        },
+        location:{
+            type: String,
+            enum: [ 'coimbatore', 'chennai', 'bangalore'],
+            required: [ true, 'Please Add the location name'],
+        }
+    },
+
+{
+    timestamps: true,
+}
+);
+
+module.exports = mongoose.model('Todo', todoSchema);
+
+
+todoController.js
+
+const Todo = require('../models/todomodels')
+
+const setTodo = asyncHandler(async(req,res) => { 
+    const { name,mobile,email,author,location} = req.body;
+    if(!name || !mobile || !email || !author || !location ){
+        res.status(400);
+        throw new Error('Plead add the text field');
+    }
+    const todo = await Todo.create({
+       name,
+       location,
+       email,
+       author,
+       location,
+    });
+    res.status(200).json({message: 'Todo Created Succesfully', todo})
+});
+
+
+const getTodos = asyncHandler(async(req, res) => {
+    const todos = await Todo.find();
+    res.status(200).json({message: 'getTodos', todos})
+});
+
+const updateTodo = asyncHandler(async(req,res)=> {
+  const todo = await Todo.findById(req.params.id);
+  
+  if(!todo){
+    res.status(400);
+    throw new Error('Todonot Found');
+   }
+
+  const updateTodo = await Todo.findByIdAndUpdate(req.params.id,req.body,{
+  new: true,
+}); 
+
+res.status(200).json(updateTodo);
+})
+
+
+const deleteTodo = asyncHandler(async(req,res) => {
+     const todoId = req.params.id;
+
+     const todo = await Todo.findByIdAndDelete(todoId);
+
+     if(!todo){
+        res.status(400);
+        throw new Error('Todo not Found');
+     }
+     res.status(200).json({message:'deleteTodo Succesfully'})
+});
+
+const deleteAll = asyncHandler(async(req,res)=>{
+    const result = await Todo.deleteMany({});
+
+    res.status(200).json({
+        message: 'All todos deleted Successfully',
+        deletedCount: result.deletedCount,
+    });
+});
+
+
+module.exports = {
+    getTodos,
+    setTodo,
+    updateTodo,
+    deleteTodo,
+    deleteAll
+}
+
+
+step 12 :
+
+npm i cors 
+
+const cors = require("cors");
+
+app.use(cors());
+
+
+Step 13 :
+
+model/usermodel.js
+
+const mongoose = require('mongoose');
+
+const userSchema = mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, 'Please add a name'],
+    },
+    email: {
+      type: String,
+      required: [true, 'Please add an email'],
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: [true, 'Please add a password'],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model('User', userSchema);
+
+
+
+model/todoModel.js
+
+ user: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true,
+            ref: 'User',
+          },
+
+
+step 12:
+
+controllers/userController.js
+
+
+const registerUser = (req, res) => {
+  res.json({ message: "Register User" });
+};
+
+const loginUser = (req, res) => {
+  res.json({ message: "Login User" });
+};
+
+const getLoggedInUser = (req, res) => {
+  res.json({ message: "Logged In User data" });
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  getLoggedInUser,
+};
+
+
+routes/userRoutes.js
+
+
+const express = require("express");
+const router = express.Router();
+const {
+  registerUser,
+  loginUser,
+  getLoggedInUser,
+} = require("../controllers/userController");
+
+router.post("/", registerUser);
+router.post("/login", loginUser);
+router.get("/me", getLoggedInUser);
+
+module.exports = router;
+
+
+
+server.js
+
+app.use('/api/users', require('./routes/userRoutes'));
+
+
+
+npm commands
+
+npm i bcryptjs
+npm i jsonwebtoken
+npm i dotenv
+
+.env
+JWT_SECRET=3Nvd8GpTz9yWxJkQq2UlNhRf5C7PmAYX
+
+server.js
+require('dotenv').config();
+
+
+
+//userController.js
+
+
+
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const asyncHandler = require("express-async-handler");
+const User = require("../models/userModel");
+
+// Generate JWT
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+};
+
+
+
+
+
+userController.js
+
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error("Please add all fields");
+  }
+
+  // check if user exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("User already exists");
+  }
+
+  // create hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // create user
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+  });
+
+  if (user) {
+    res.status(201).json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error("Invalid user data");
+  }
+});
+
+
+///login
+
+
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("Please add all fields");
+  }
+
+  // Check for user email
+  const user = await User.findOne({ email });
+
+  if (user && (await bcrypt.compare(password, user.password))) {
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error("Invalid credentials");
+  }
+});
+
+
+middleware/authMiddleware.js
+
+
+const jwt = require("jsonwebtoken");
+const asyncHandler = require("express-async-handler");
+const User = require("../models/userModel");
+
+const protect = asyncHandler(async (req, res, next) => {
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      // get token from header
+      token = req.headers.authorization.split(" ")[1];
+
+      // verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // get user from the token
+      req.user = await User.findById(decoded.id).select("-password");
+
+      next();
+    } catch (error) {
+      console.log(error);
+      res.status(401);
+      throw new Error("Not Authorized");
+    }
+  }
+  if (!token) {
+    res.status(401);
+    throw new Error("Not Authorized, no token");
+  }
+});
+
+module.exports = { protect };
+
+
+userController.js
+
+const getLoggedInUser = asyncHandler(async (req, res) => {
+  const { _id, name, email } = await User.findById(req.user.id);
+  res.status(200).json({
+    id: _id,
+    name,
+    email,
+  });
+});
+
+
+userRoutes.js
+
+const { protect } = require("../middleware/authMiddleware");
+
+router.get("/me", protect, getLoggedInUser); 
+
+todoRoutes.js
+
+const { protect } = require("../middleware/authMiddleware");
+
+router.route("/").get(protect, getTodos).post(protect, setTodo);
+router.route("/:id").put(protect, updateTodo).delete(protect, deleteTodo);
+
+
+
+todoController.js
+
+const setTodo = asyncHanlder(async (req, res) => {
+  // ... existing logic
+  const todo = await Todo.create({
+    text: req.body.text,
+    user: req.user.id, // associating the todo with the logged-in user 
+  });
+  // ... remaining logic
+});
+
+
+const getTodos = asyncHanlder(async (req, res) => {
+  const todos = await Todo.find({ user: req.user.id });
+  res.status(200).json(todos);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
